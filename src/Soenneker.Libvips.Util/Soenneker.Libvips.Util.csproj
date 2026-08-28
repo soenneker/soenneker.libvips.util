@@ -5,7 +5,6 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <Platforms>AnyCPU</Platforms>
-        <!-- EnumValues-generated public constants currently do not emit XML documentation. -->
         <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
 
@@ -45,10 +44,12 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Gen.EnumValues" Version="4.0.44" />
+        <PackageReference Include="Soenneker.Asyncs.Locks" Version="4.0.68" />
         <PackageReference Include="Soenneker.Libvips.Linux" Version="4.0.18" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Libvips.Windows" Version="4.0.4" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.902" />
         <PackageReference Include="Soenneker.Utils.File" Version="4.0.2226" />
+        <PackageReference Include="Soenneker.Utils.Path" Version="4.0.1194" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1525" />
         <PackageReference Include="Soenneker.Utils.Runtime" Version="4.0.1067" />
     </ItemGroup>

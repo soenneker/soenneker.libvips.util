@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Soenneker.Libvips.Util.Commands;
+using Soenneker.Libvips.Util.Commands.Abstract;
 using Soenneker.Libvips.Util.Dtos;
 using Soenneker.Libvips.Util.Enums;
 using Soenneker.Libvips.Util.Options;
-using Soenneker.Libvips.Util.Pipelines;
+using Soenneker.Libvips.Util.Pipelines.Abstract;
 
 namespace Soenneker.Libvips.Util.Abstract;
 
@@ -14,7 +14,10 @@ namespace Soenneker.Libvips.Util.Abstract;
 /// </summary>
 public interface ILibvipsUtil
 {
-    /// <summary>Executes raw arguments against the bundled <c>vips</c> executable.</summary>
+    /// <summary>
+    /// Executes raw arguments against the bundled <c>vips</c> executable. Prefer <see cref="Execute"/> when arguments
+    /// contain application-supplied paths or values.
+    /// </summary>
     /// <param name="arguments">The complete argument string passed to <c>vips</c>.</param>
     /// <param name="workingDirectory">The process working directory, or <see langword="null"/> to use the current directory.</param>
     /// <param name="log">Whether process output should be logged.</param>
@@ -29,7 +32,7 @@ public interface ILibvipsUtil
     /// <param name="log">Whether process output should be logged.</param>
     /// <param name="cancellationToken">A token that can cancel the process.</param>
     /// <returns>The standard output emitted by the process, split into lines.</returns>
-    ValueTask<List<string>> Execute(LibvipsCommand command, string? workingDirectory = null, bool log = true,
+    ValueTask<List<string>> Execute(ILibvipsCommand command, string? workingDirectory = null, bool log = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>Gets the version reported by the bundled <c>vips</c> executable.</summary>
@@ -50,7 +53,7 @@ public interface ILibvipsUtil
     /// <param name="options">Optional output encoding settings.</param>
     /// <param name="cancellationToken">A token that can cancel the operation.</param>
     /// <returns>A value task representing the asynchronous operation.</returns>
-    ValueTask Process(string inputPath, string outputPath, LibvipsPipeline pipeline, LibvipsOptions? options = null,
+    ValueTask Process(string inputPath, string outputPath, ILibvipsPipeline pipeline, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Converts an image using the encoder selected by the destination extension.</summary>

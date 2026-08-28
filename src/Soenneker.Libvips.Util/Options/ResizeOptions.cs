@@ -19,7 +19,8 @@ public sealed class ResizeOptions
     /// <summary>Gets whether resizing is performed in linear-light colour space.</summary>
     public bool LinearLight { get; init; }
 
-    internal void Validate()
+    /// <summary>Validates the requested dimensions and resize modes.</summary>
+    public void Validate()
     {
         ArgumentNullException.ThrowIfNull(Size);
         ArgumentNullException.ThrowIfNull(Crop);

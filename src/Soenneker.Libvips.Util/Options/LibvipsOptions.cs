@@ -26,7 +26,9 @@ public sealed class LibvipsOptions
     /// <summary>Uses optimized Huffman coding for JPEG output.</summary>
     public bool OptimizeCoding { get; init; } = true;
 
-    internal void Validate()
+    /// <summary>Validates that all encoder settings are within their supported ranges.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">An option is outside its supported range.</exception>
+    public void Validate()
     {
         if (Quality is < 1 or > 100)
             throw new ArgumentOutOfRangeException(nameof(Quality), "Quality must be between 1 and 100.");

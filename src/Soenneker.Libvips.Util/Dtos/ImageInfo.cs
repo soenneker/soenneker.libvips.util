@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Soenneker.Libvips.Util.Dtos;
@@ -23,4 +24,28 @@ public readonly record struct ImageInfo(
     double? XResolution = null,
     double? YResolution = null,
     string? Loader = null,
-    IReadOnlyDictionary<string, string>? Metadata = null);
+    IReadOnlyDictionary<string, string>? Metadata = null)
+{
+    /// <summary>The total number of pixels in the image.</summary>
+    public long PixelCount => (long)Width * Height;
+
+    /// <summary>The width divided by the height, or zero when the height is unavailable.</summary>
+    public double AspectRatio => Height == 0 ? 0 : (double)Width / Height;
+
+    /// <summary>Attempts to get a metadata value using a case-insensitive key.</summary>
+    /// <param name="key">The metadata key.</param>
+    /// <param name="value">The metadata value when found.</param>
+    /// <returns><see langword="true"/> when the key exists; otherwise, <see langword="false"/>.</returns>
+    public bool TryGetMetadata(string key, out string? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (Metadata is not null && Metadata.TryGetValue(key, out string? metadataValue))
+        {
+            value = metadataValue;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+}

@@ -20,8 +20,6 @@ public static class LibvipsUtilRegistrar
     /// <returns>The same service collection, enabling fluent registration.</returns>
     public static IServiceCollection AddLibvipsUtilAsSingleton(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
-
         services.AddDirectoryUtilAsSingleton()
                 .AddFileUtilAsSingleton()
                 .AddProcessUtilAsSingleton()
@@ -37,8 +35,6 @@ public static class LibvipsUtilRegistrar
     /// <returns>The same service collection, enabling fluent registration.</returns>
     public static IServiceCollection AddLibvipsUtilAsScoped(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
-
         services.AddDirectoryUtilAsScoped()
                 .AddFileUtilAsScoped()
                 .AddProcessUtilAsScoped()

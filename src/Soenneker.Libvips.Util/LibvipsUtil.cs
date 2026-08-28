@@ -9,12 +9,14 @@ using System.Threading.Tasks;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Libvips.Util.Abstract;
 using Soenneker.Libvips.Util.Commands;
+using Soenneker.Libvips.Util.Commands.Abstract;
 using Soenneker.Libvips.Util.Dtos;
 using Soenneker.Libvips.Util.Enums;
 using Soenneker.Libvips.Util.Options;
-using Soenneker.Libvips.Util.Pipelines;
+using Soenneker.Libvips.Util.Pipelines.Abstract;
 using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.File.Abstract;
+using Soenneker.Utils.Path.Abstract;
 using Soenneker.Utils.Process.Abstract;
 using Soenneker.Utils.Runtime;
 
@@ -23,9 +25,10 @@ namespace Soenneker.Libvips.Util;
 /// <inheritdoc cref="ILibvipsUtil"/>
 public sealed class LibvipsUtil : ILibvipsUtil
 {
-    private readonly IProcessUtil _processUtil;
     private readonly IDirectoryUtil _directoryUtil;
     private readonly IFileUtil _fileUtil;
+    private readonly IPathUtil _pathUtil;
+    private readonly IProcessUtil _processUtil;
     private readonly string _vipsBinaryPath;
     private readonly string _vipsHeaderBinaryPath;
 
@@ -34,10 +37,21 @@ public sealed class LibvipsUtil : ILibvipsUtil
     /// <param name="directoryUtil">The directory utility.</param>
     /// <param name="fileUtil">The file utility.</param>
     public LibvipsUtil(IProcessUtil processUtil, IDirectoryUtil directoryUtil, IFileUtil fileUtil)
+        : this(processUtil, directoryUtil, fileUtil, new Soenneker.Utils.Path.PathUtil())
+    {
+    }
+
+    /// <summary>Creates a libvips utility using the registered process, path, and filesystem services.</summary>
+    /// <param name="processUtil">The process execution utility.</param>
+    /// <param name="directoryUtil">The directory utility.</param>
+    /// <param name="fileUtil">The file utility.</param>
+    /// <param name="pathUtil">The path utility used to allocate unique temporary paths.</param>
+    public LibvipsUtil(IProcessUtil processUtil, IDirectoryUtil directoryUtil, IFileUtil fileUtil, IPathUtil pathUtil)
     {
         _processUtil = processUtil ?? throw new ArgumentNullException(nameof(processUtil));
         _directoryUtil = directoryUtil ?? throw new ArgumentNullException(nameof(directoryUtil));
         _fileUtil = fileUtil ?? throw new ArgumentNullException(nameof(fileUtil));
+        _pathUtil = pathUtil ?? throw new ArgumentNullException(nameof(pathUtil));
 
         EnsureSupportedPlatform();
 
@@ -50,7 +64,6 @@ public sealed class LibvipsUtil : ILibvipsUtil
             : Path.Join(AppContext.BaseDirectory, "Resources", "linux-x64", "libvips", "vipsheader.sh");
     }
 
-    /// <inheritdoc/>
     public async ValueTask<List<string>> Run(string arguments, string? workingDirectory = null, bool log = true,
         CancellationToken cancellationToken = default)
     {
@@ -59,12 +72,11 @@ public sealed class LibvipsUtil : ILibvipsUtil
         return await RunExecutable(_vipsBinaryPath, arguments, workingDirectory, log, cancellationToken).NoSync();
     }
 
-    /// <inheritdoc/>
-    public ValueTask<List<string>> Execute(LibvipsCommand command, string? workingDirectory = null, bool log = true,
+    public ValueTask<List<string>> Execute(ILibvipsCommand command, string? workingDirectory = null, bool log = true,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return Run(command.Build(), workingDirectory, log, cancellationToken);
+        return RunExecutable(_vipsBinaryPath, LibvipsCommand.Build(command), workingDirectory, log, cancellationToken);
     }
 
     private async ValueTask<List<string>> RunExecutable(string executablePath, string arguments,
@@ -91,7 +103,6 @@ public sealed class LibvipsUtil : ILibvipsUtil
     }
 
 
-    /// <inheritdoc/>
     public async ValueTask<string> GetVersion(CancellationToken cancellationToken = default)
     {
         List<string> output = await Run("--version", log: false, cancellationToken: cancellationToken).NoSync();
@@ -99,11 +110,12 @@ public sealed class LibvipsUtil : ILibvipsUtil
     }
 
 
-    /// <inheritdoc/>
     public async ValueTask<ImageInfo> Identify(string inputPath, CancellationToken cancellationToken = default)
     {
         await ValidateInput(inputPath, cancellationToken).NoSync();
-        List<string> output = await RunExecutable(_vipsHeaderBinaryPath, $"-a {Quote(inputPath)}", null, false, cancellationToken).NoSync();
+        string fullInputPath = Path.GetFullPath(inputPath);
+        string arguments = LibvipsCommand.BuildArgumentString(["-a", fullInputPath]);
+        List<string> output = await RunExecutable(_vipsHeaderBinaryPath, arguments, null, false, cancellationToken).NoSync();
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         for (var index = 1; index < output.Count; index++)
@@ -130,7 +142,6 @@ public sealed class LibvipsUtil : ILibvipsUtil
     }
 
 
-    /// <inheritdoc/>
     public async ValueTask Convert(string inputPath, string outputPath, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -141,20 +152,28 @@ public sealed class LibvipsUtil : ILibvipsUtil
 
         string fullOutputPath = Path.GetFullPath(outputPath);
         await _directoryUtil.Create(Path.GetDirectoryName(fullOutputPath)!, cancellationToken: cancellationToken).NoSync();
+        string temporaryOutputPath = await CreateTemporaryOutputPath(fullOutputPath, cancellationToken).NoSync();
 
-        var command = new LibvipsCommand("copy")
-            .AddArgument(Path.GetFullPath(inputPath))
-            .AddArgument(BuildOutputSpec(fullOutputPath, options));
-        await Execute(command, cancellationToken: cancellationToken).NoSync();
+        try
+        {
+            ILibvipsCommand command = new LibvipsCommand("copy")
+                                     .AddArgument(Path.GetFullPath(inputPath))
+                                     .AddArgument(BuildOutputSpec(temporaryOutputPath, options));
+            await Execute(command, cancellationToken: cancellationToken).NoSync();
+            await CommitOutput(temporaryOutputPath, fullOutputPath, cancellationToken).NoSync();
+        }
+        finally
+        {
+            await _fileUtil.TryDeleteIfExists(temporaryOutputPath, log: false, CancellationToken.None).NoSync();
+        }
     }
 
-    /// <inheritdoc/>
-    public async ValueTask Process(string inputPath, string outputPath, LibvipsPipeline pipeline,
+    public async ValueTask Process(string inputPath, string outputPath, ILibvipsPipeline pipeline,
         LibvipsOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
-        LibvipsPipeline.Step[] steps = [.. pipeline.Steps];
-        if (steps.Length == 0)
+        IReadOnlyList<ILibvipsPipelineStep> steps = await pipeline.GetSteps(cancellationToken).NoSync();
+        if (steps.Count == 0)
         {
             await Convert(inputPath, outputPath, options, cancellationToken).NoSync();
             return;
@@ -167,35 +186,41 @@ public sealed class LibvipsUtil : ILibvipsUtil
 
         string fullOutputPath = Path.GetFullPath(outputPath);
         await _directoryUtil.Create(Path.GetDirectoryName(fullOutputPath)!, cancellationToken: cancellationToken).NoSync();
-        string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"soenneker-libvips-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(temporaryDirectory);
+        string temporaryDirectory = await _pathUtil.GetUniqueTempDirectory("soenneker-libvips", cancellationToken: cancellationToken).NoSync();
+        string temporaryOutputPath = await CreateTemporaryOutputPath(fullOutputPath, cancellationToken).NoSync();
 
         try
         {
             string currentInput = Path.GetFullPath(inputPath);
-            for (var index = 0; index < steps.Length; index++)
+            var commands = new List<ILibvipsCommand>(steps.Count);
+
+            for (var index = 0; index < steps.Count; index++)
             {
-                LibvipsPipeline.Step step = steps[index];
-                bool isLast = index == steps.Length - 1;
+                ILibvipsPipelineStep step = steps[index];
+                bool isLast = index == steps.Count - 1;
                 string currentOutput = isLast
-                    ? BuildOutputSpec(fullOutputPath, options)
+                    ? BuildOutputSpec(temporaryOutputPath, options)
                     : Path.Combine(temporaryDirectory, $"{index}.v");
 
-                var command = new LibvipsCommand(step.Operation).AddArgument(currentInput).AddArgument(currentOutput);
+                ILibvipsCommand command = new LibvipsCommand(step.Operation).AddArgument(currentInput).AddArgument(currentOutput);
                 step.Configure?.Invoke(command);
-                await Execute(command, log: false, cancellationToken: cancellationToken).NoSync();
+                commands.Add(command);
                 currentInput = currentOutput;
             }
+
+            foreach (ILibvipsCommand command in commands)
+                await Execute(command, log: false, cancellationToken: cancellationToken).NoSync();
+
+            await CommitOutput(temporaryOutputPath, fullOutputPath, cancellationToken).NoSync();
         }
         finally
         {
-            if (Directory.Exists(temporaryDirectory))
-                Directory.Delete(temporaryDirectory, true);
+            await _fileUtil.TryDeleteIfExists(temporaryOutputPath, log: false, CancellationToken.None).NoSync();
+            await _directoryUtil.DeleteIfExists(temporaryDirectory, CancellationToken.None).NoSync();
         }
     }
 
 
-    /// <inheritdoc/>
     public ValueTask ConvertToAvif(string inputPath, string outputPath, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -204,7 +229,6 @@ public sealed class LibvipsUtil : ILibvipsUtil
     }
 
 
-    /// <inheritdoc/>
     public ValueTask ConvertToWebp(string inputPath, string outputPath, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -213,14 +237,12 @@ public sealed class LibvipsUtil : ILibvipsUtil
     }
 
 
-    /// <inheritdoc/>
     public async ValueTask Resize(string inputPath, string outputPath, int width, int? height = null,
         LibvipsOptions? options = null, CancellationToken cancellationToken = default)
     {
         await Resize(inputPath, outputPath, new ResizeOptions {Width = width, Height = height}, options, cancellationToken).NoSync();
     }
 
-    /// <inheritdoc/>
     public async ValueTask Resize(string inputPath, string outputPath, ResizeOptions resizeOptions,
         LibvipsOptions? outputOptions = null, CancellationToken cancellationToken = default)
     {
@@ -240,21 +262,22 @@ public sealed class LibvipsUtil : ILibvipsUtil
         }, cancellationToken).NoSync();
     }
 
-    /// <inheritdoc/>
     public ValueTask Crop(string inputPath, string outputPath, int left, int top, int width, int height,
         LibvipsOptions? options = null, CancellationToken cancellationToken = default)
     {
+        if (left < 0)
+            throw new ArgumentOutOfRangeException(nameof(left), "Left must be zero or greater.");
+        if (top < 0)
+            throw new ArgumentOutOfRangeException(nameof(top), "Top must be zero or greater.");
         ValidateDimensions(width, height);
         return ExecuteImageOperation("crop", inputPath, outputPath, options,
             command => command.AddArgument(left).AddArgument(top).AddArgument(width).AddArgument(height), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask SmartCrop(string inputPath, string outputPath, int width, int height,
         LibvipsOptions? options = null, CancellationToken cancellationToken = default) =>
         SmartCrop(inputPath, outputPath, width, height, LibvipsInteresting.Attention, options, cancellationToken);
 
-    /// <inheritdoc/>
     public ValueTask SmartCrop(string inputPath, string outputPath, int width, int height,
         LibvipsInteresting interesting, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -265,7 +288,6 @@ public sealed class LibvipsUtil : ILibvipsUtil
             command => command.AddArgument(width).AddArgument(height).AddOption("interesting", interesting.Value), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask Rotate(string inputPath, string outputPath, LibvipsAngle angle, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -273,12 +295,10 @@ public sealed class LibvipsUtil : ILibvipsUtil
         return ExecuteImageOperation("rot", inputPath, outputPath, options, command => command.AddArgument(angle.Value), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask AutoRotate(string inputPath, string outputPath, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default) =>
         ExecuteImageOperation("autorot", inputPath, outputPath, options, null, cancellationToken);
 
-    /// <inheritdoc/>
     public ValueTask Flip(string inputPath, string outputPath, LibvipsDirection direction, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -286,47 +306,48 @@ public sealed class LibvipsUtil : ILibvipsUtil
         return ExecuteImageOperation("flip", inputPath, outputPath, options, command => command.AddArgument(direction.Value), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask Blur(string inputPath, string outputPath, double sigma, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (sigma is < 0 or > 1000)
+        if (!double.IsFinite(sigma) || sigma is < 0 or > 1000)
             throw new ArgumentOutOfRangeException(nameof(sigma), "Sigma must be between 0 and 1000.");
         return ExecuteImageOperation("gaussblur", inputPath, outputPath, options, command => command.AddArgument(sigma), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask Sharpen(string inputPath, string outputPath, double sigma = 0.5, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (sigma is <= 0 or > 10)
+        if (!double.IsFinite(sigma) || sigma is <= 0 or > 10)
             throw new ArgumentOutOfRangeException(nameof(sigma), "Sigma must be greater than zero and no more than 10.");
         return ExecuteImageOperation("sharpen", inputPath, outputPath, options, command => command.AddOption("sigma", sigma), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask Gamma(string inputPath, string outputPath, double exponent = 1d / 2.4d,
         LibvipsOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (exponent is <= 0 or > 1000)
+        if (!double.IsFinite(exponent) || exponent is <= 0 or > 1000)
             throw new ArgumentOutOfRangeException(nameof(exponent), "Exponent must be greater than zero and no more than 1000.");
         return ExecuteImageOperation("gamma", inputPath, outputPath, options, command => command.AddOption("exponent", exponent), cancellationToken);
     }
 
-    /// <inheritdoc/>
     public ValueTask Invert(string inputPath, string outputPath, LibvipsOptions? options = null,
         CancellationToken cancellationToken = default) =>
         ExecuteImageOperation("invert", inputPath, outputPath, options, null, cancellationToken);
 
-    /// <inheritdoc/>
     public ValueTask Flatten(string inputPath, string outputPath, double[]? background = null,
-        LibvipsOptions? options = null, CancellationToken cancellationToken = default) =>
-        ExecuteImageOperation("flatten", inputPath, outputPath, options,
-            background is null ? null : command => command.AddOption("background",
-                string.Join(',', Array.ConvertAll(background, value => value.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+        LibvipsOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        double[]? values = background is null ? null : [.. background];
+        if (values is not null)
+            ValidateBackground(values);
+
+        return ExecuteImageOperation("flatten", inputPath, outputPath, options,
+            values is not {Length: > 0} ? null : command => command.AddOption("background",
+                string.Join(',', Array.ConvertAll(values, value => value.ToString(CultureInfo.InvariantCulture)))), cancellationToken);
+    }
 
     private async ValueTask ExecuteImageOperation(string operation, string inputPath, string outputPath,
-        LibvipsOptions? options, Action<LibvipsCommand>? configure, CancellationToken cancellationToken)
+        LibvipsOptions? options, Action<ILibvipsCommand>? configure, CancellationToken cancellationToken)
     {
         await ValidateInput(inputPath, cancellationToken).NoSync();
         ValidateOutput(outputPath);
@@ -335,12 +356,21 @@ public sealed class LibvipsUtil : ILibvipsUtil
 
         string fullOutputPath = Path.GetFullPath(outputPath);
         await _directoryUtil.Create(Path.GetDirectoryName(fullOutputPath)!, cancellationToken: cancellationToken).NoSync();
+        string temporaryOutputPath = await CreateTemporaryOutputPath(fullOutputPath, cancellationToken).NoSync();
 
-        var command = new LibvipsCommand(operation)
-            .AddArgument(Path.GetFullPath(inputPath))
-            .AddArgument(BuildOutputSpec(fullOutputPath, options));
-        configure?.Invoke(command);
-        await Execute(command, cancellationToken: cancellationToken).NoSync();
+        try
+        {
+            ILibvipsCommand command = new LibvipsCommand(operation)
+                                     .AddArgument(Path.GetFullPath(inputPath))
+                                     .AddArgument(BuildOutputSpec(temporaryOutputPath, options));
+            configure?.Invoke(command);
+            await Execute(command, cancellationToken: cancellationToken).NoSync();
+            await CommitOutput(temporaryOutputPath, fullOutputPath, cancellationToken).NoSync();
+        }
+        finally
+        {
+            await _fileUtil.TryDeleteIfExists(temporaryOutputPath, log: false, CancellationToken.None).NoSync();
+        }
     }
 
     private static string BuildOutputSpec(string outputPath, LibvipsOptions options)
@@ -381,6 +411,28 @@ public sealed class LibvipsUtil : ILibvipsUtil
         return values.Count == 0 ? outputPath : $"{outputPath}[{string.Join(',', values)}]";
     }
 
+    private ValueTask<string> CreateTemporaryOutputPath(string outputPath, CancellationToken cancellationToken)
+    {
+        string directory = Path.GetDirectoryName(outputPath)!;
+        string extension = Path.GetExtension(outputPath);
+        return _pathUtil.GetRandomUniqueFilePath(directory, extension, cancellationToken);
+    }
+
+    private ValueTask CommitOutput(string temporaryOutputPath, string outputPath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return _fileUtil.Move(temporaryOutputPath, outputPath, log: false, cancellationToken);
+    }
+
+    private static void ValidateBackground(double[] background)
+    {
+        for (var index = 0; index < background.Length; index++)
+        {
+            if (!double.IsFinite(background[index]))
+                throw new ArgumentOutOfRangeException(nameof(background), "Background values must be finite numbers.");
+        }
+    }
+
     private static int ParseMetadataInt(IReadOnlyDictionary<string, string> metadata, string field)
     {
         if (!metadata.TryGetValue(field, out string? text) ||
@@ -395,7 +447,7 @@ public sealed class LibvipsUtil : ILibvipsUtil
             : null;
 
     private static string? GetMetadata(IReadOnlyDictionary<string, string> metadata, string field) =>
-        metadata.TryGetValue(field, out string? value) ? value : null;
+        metadata.GetValueOrDefault(field);
 
     private static void ValidateDimensions(int width, int height)
     {
@@ -404,8 +456,6 @@ public sealed class LibvipsUtil : ILibvipsUtil
         if (height <= 0)
             throw new ArgumentOutOfRangeException(nameof(height), "Height must be greater than zero.");
     }
-
-    private static string Quote(string path) => $"\"{Path.GetFullPath(path).Replace("\"", "\\\"")}\"";
 
     private async ValueTask ValidateInput(string inputPath, CancellationToken cancellationToken)
     {
