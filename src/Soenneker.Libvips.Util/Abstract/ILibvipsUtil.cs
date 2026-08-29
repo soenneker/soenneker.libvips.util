@@ -26,7 +26,9 @@ public interface ILibvipsUtil
     ValueTask<List<string>> Run(string arguments, string? workingDirectory = null, bool log = true,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Executes a structured operation against the bundled <c>vips</c> executable.</summary>
+    /// <summary>
+    /// Executes a structured operation against the bundled <c>vips</c> executable.
+    /// </summary>
     /// <param name="command">The validated operation, positional arguments, and named options.</param>
     /// <param name="workingDirectory">The process working directory, or <see langword="null"/> to use the current directory.</param>
     /// <param name="log">Whether process output should be logged.</param>

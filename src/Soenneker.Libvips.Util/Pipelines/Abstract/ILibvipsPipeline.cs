@@ -13,12 +13,18 @@ namespace Soenneker.Libvips.Util.Pipelines.Abstract;
 /// </summary>
 public interface ILibvipsPipeline : IDisposable, IAsyncDisposable
 {
-    /// <summary>Gets the number of operations in this pipeline.</summary>
+    /// <summary>
+    /// Gets the number of operations in this pipeline.
+    /// </summary>
     /// <param name="cancellationToken">A token that can cancel lock acquisition.</param>
+    /// <returns>A task whose result is the requested value.</returns>
     ValueTask<int> GetCount(CancellationToken cancellationToken = default);
 
-    /// <summary>Gets a read-only snapshot of the configured operations.</summary>
+    /// <summary>
+    /// Gets a read-only snapshot of the configured operations.
+    /// </summary>
     /// <param name="cancellationToken">A token that can cancel lock acquisition.</param>
+    /// <returns>A task whose result is the collection returned by get Steps.</returns>
     ValueTask<IReadOnlyList<ILibvipsPipelineStep>> GetSteps(CancellationToken cancellationToken = default);
 
     /// <summary>Adds a unary libvips operation whose first arguments are the input and output images.</summary>
