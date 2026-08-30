@@ -7,7 +7,6 @@ using Soenneker.Libvips.Util.Commands.Abstract;
 
 namespace Soenneker.Libvips.Util.Commands;
 
-/// <inheritdoc cref="ILibvipsCommand"/>
 public sealed class LibvipsCommand : ILibvipsCommand
 {
     private readonly List<string> _arguments = [];
@@ -57,11 +56,17 @@ public sealed class LibvipsCommand : ILibvipsCommand
 
     internal static string Build(ILibvipsCommand command)
     {
+        if (!IsValidName(command.Operation))
+            throw new InvalidOperationException($"'{command.Operation}' is not a valid libvips operation name.");
+
         var arguments = new List<string>(1 + command.Arguments.Count + (command.Options.Count * 2)) {command.Operation};
         arguments.AddRange(command.Arguments);
 
         foreach (KeyValuePair<string, string?> option in command.Options)
         {
+            if (!IsValidName(option.Key))
+                throw new InvalidOperationException($"'{option.Key}' is not a valid libvips option name.");
+
             arguments.Add($"--{option.Key}");
             if (option.Value is not null)
                 arguments.Add(option.Value);
@@ -133,10 +138,21 @@ public sealed class LibvipsCommand : ILibvipsCommand
         if (!char.IsAsciiLetter(value[0]))
             throw new ArgumentException("Names must begin with an ASCII letter.", parameterName);
 
+        if (!IsValidName(value))
+            throw new ArgumentException("Names may contain only ASCII letters, digits, hyphens, and underscores.", parameterName);
+    }
+
+    private static bool IsValidName(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || !char.IsAsciiLetter(value[0]))
+            return false;
+
         foreach (char character in value)
         {
             if (!char.IsAsciiLetterOrDigit(character) && character is not '-' and not '_')
-                throw new ArgumentException("Names may contain only ASCII letters, digits, hyphens, and underscores.", parameterName);
+                return false;
         }
+
+        return true;
     }
 }

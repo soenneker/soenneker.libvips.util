@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -177,5 +178,33 @@ public sealed class LibvipsUtilTests
 
         if (command.Arguments is System.Collections.Generic.IList<string> mutableArguments && !mutableArguments.IsReadOnly)
             throw new InvalidOperationException("The public argument view must be read-only.");
+    }
+
+    [Test]
+    public async Task Rejects_invalid_custom_commands()
+    {
+        await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
+        ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
+
+        try
+        {
+            _ = util.Execute(new InvalidCommand());
+            throw new InvalidOperationException("The invalid custom command was accepted.");
+        }
+        catch (InvalidOperationException exception) when (!exception.Message.Contains("was accepted", StringComparison.Ordinal))
+        {
+        }
+    }
+
+    private sealed class InvalidCommand : ILibvipsCommand
+    {
+        public string Operation => "copy --version";
+        public IReadOnlyList<string> Arguments { get; } = [];
+        public IReadOnlyList<KeyValuePair<string, string?>> Options { get; } = [];
+
+        public ILibvipsCommand AddArgument(object value) => this;
+        public ILibvipsCommand AddOption(string name, object value) => this;
+        public ILibvipsCommand AddFlag(string name, bool enabled = true) => this;
+        public override string ToString() => Operation;
     }
 }
