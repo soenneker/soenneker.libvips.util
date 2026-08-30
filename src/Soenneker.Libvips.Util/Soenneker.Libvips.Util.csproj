@@ -43,7 +43,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Gen.EnumValues" Version="4.0.45" />
+        <PackageReference Include="Soenneker.Gen.EnumValues" Version="4.0.46" />
         <PackageReference Include="Soenneker.Asyncs.Locks" Version="4.0.70" />
         <PackageReference Include="Soenneker.Libvips.Linux" Version="4.0.20" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Libvips.Windows" Version="4.0.4" PrivateAssets="analyzers;build" />
