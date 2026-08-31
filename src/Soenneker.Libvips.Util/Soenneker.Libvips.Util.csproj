@@ -47,7 +47,7 @@
         <PackageReference Include="Soenneker.Asyncs.Locks" Version="4.0.74" />
         <PackageReference Include="Soenneker.Libvips.Linux" Version="4.0.21" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Libvips.Windows" Version="4.0.4" PrivateAssets="analyzers;build" />
-        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.913" />
+        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.914" />
         <PackageReference Include="Soenneker.Utils.File" Version="4.0.2241" />
         <PackageReference Include="Soenneker.Utils.Path" Version="4.0.1208" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1534" />
