@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Text;
 using Soenneker.Libvips.Util.Commands.Abstract;
+using Soenneker.Utils.PooledStringBuilders;
 
 namespace Soenneker.Libvips.Util.Commands;
 
@@ -77,7 +77,7 @@ public sealed class LibvipsCommand : ILibvipsCommand
 
     internal static string BuildArgumentString(IReadOnlyList<string> arguments)
     {
-        var builder = new StringBuilder();
+        using var builder = new PooledStringBuilder();
 
         for (var index = 0; index < arguments.Count; index++)
         {
@@ -100,7 +100,8 @@ public sealed class LibvipsCommand : ILibvipsCommand
         if (!requiresQuotes)
             return value;
 
-        StringBuilder builder = new StringBuilder(value.Length + 2).Append('"');
+        using var builder = new PooledStringBuilder(value.Length + 2);
+        builder.Append('"');
         var backslashCount = 0;
 
         foreach (char character in value)
@@ -113,16 +114,19 @@ public sealed class LibvipsCommand : ILibvipsCommand
 
             if (character == '"')
             {
-                builder.Append('\\', (backslashCount * 2) + 1).Append('"');
+                builder.Append('\\', (backslashCount * 2) + 1);
+                builder.Append('"');
                 backslashCount = 0;
                 continue;
             }
 
-            builder.Append('\\', backslashCount).Append(character);
+            builder.Append('\\', backslashCount);
+            builder.Append(character);
             backslashCount = 0;
         }
 
-        builder.Append('\\', backslashCount * 2).Append('"');
+        builder.Append('\\', backslashCount * 2);
+        builder.Append('"');
         return builder.ToString();
     }
 
