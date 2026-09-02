@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Soenneker.Extensions.ValueTask;
@@ -20,7 +21,7 @@ public sealed class LibvipsUtilTests
     private const string Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
     [Test]
-    public async Task Converts_image_to_webp_and_avif()
+    public async Task Converts_image_to_webp_and_avif(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -33,11 +34,11 @@ public sealed class LibvipsUtilTests
             string avif = Path.Combine(directory, "output.avif");
             await File.WriteAllBytesAsync(input, Convert.FromBase64String(Png));
 
-            await util.ConvertToWebp(input, webp).NoSync();
-            await util.ConvertToAvif(input, avif).NoSync();
+            await util.ConvertToWebp(input, webp, cancellationToken: cancellationToken).NoSync();
+            await util.ConvertToAvif(input, avif, cancellationToken: cancellationToken).NoSync();
 
-            Dtos.ImageInfo webpInfo = await util.Identify(webp).NoSync();
-            Dtos.ImageInfo avifInfo = await util.Identify(avif).NoSync();
+            Dtos.ImageInfo webpInfo = await util.Identify(webp, cancellationToken: cancellationToken).NoSync();
+            Dtos.ImageInfo avifInfo = await util.Identify(avif, cancellationToken: cancellationToken).NoSync();
 
             if (webpInfo.Width != 1 || webpInfo.Height != 1 || avifInfo.Width != 1 || avifInfo.Height != 1)
                 throw new InvalidOperationException("The generated image dimensions are incorrect.");
@@ -49,7 +50,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Resizes_image_to_webp()
+    public async Task Resizes_image_to_webp(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -61,7 +62,7 @@ public sealed class LibvipsUtilTests
             string output = Path.Combine(directory, "resized.webp");
 
             await util.Resize(input, output, 32, 32).NoSync();
-            Dtos.ImageInfo info = await util.Identify(output).NoSync();
+            Dtos.ImageInfo info = await util.Identify(output, cancellationToken: cancellationToken).NoSync();
 
             if (info.Width > 32 || info.Height > 32)
                 throw new InvalidOperationException("The resized image exceeds the requested bounds.");
@@ -73,7 +74,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Processes_a_typed_pipeline_and_reads_metadata()
+    public async Task Processes_a_typed_pipeline_and_reads_metadata(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -88,11 +89,11 @@ public sealed class LibvipsUtilTests
                 .Blur(0.5)
                 .Invert();
 
-            if (await pipeline.GetCount().NoSync() != 3 || (await pipeline.GetSteps().NoSync()).Count != 3)
+            if (await pipeline.GetCount(cancellationToken: cancellationToken).NoSync() != 3 || (await pipeline.GetSteps(cancellationToken: cancellationToken).NoSync()).Count != 3)
                 throw new InvalidOperationException("The pipeline snapshot is incomplete.");
 
-            await util.Process(input, output, pipeline).NoSync();
-            Dtos.ImageInfo info = await util.Identify(output).NoSync();
+            await util.Process(input, output, pipeline, cancellationToken: cancellationToken).NoSync();
+            Dtos.ImageInfo info = await util.Identify(output, cancellationToken: cancellationToken).NoSync();
 
             if (info.Width != 128 || info.Height != 128 || info.Format is null || info.Loader is null || info.Metadata is null)
                 throw new InvalidOperationException("The pipeline output metadata is incomplete.");
@@ -104,7 +105,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Preserves_existing_output_when_encoding_fails()
+    public async Task Preserves_existing_output_when_encoding_fails(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -120,7 +121,7 @@ public sealed class LibvipsUtilTests
 
             try
             {
-                await util.ConvertToWebp(input, output).NoSync();
+                await util.ConvertToWebp(input, output, cancellationToken: cancellationToken).NoSync();
                 throw new InvalidOperationException("The invalid image unexpectedly converted successfully.");
             }
             catch (InvalidOperationException exception) when (!exception.Message.Contains("unexpectedly", StringComparison.Ordinal))
@@ -141,7 +142,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Safely_replaces_an_image_in_place()
+    public async Task Safely_replaces_an_image_in_place(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -152,8 +153,8 @@ public sealed class LibvipsUtilTests
             string path = Path.Combine(directory, "image.png");
             await File.WriteAllBytesAsync(path, Convert.FromBase64String(Png));
 
-            await util.Convert(path, path).NoSync();
-            Dtos.ImageInfo info = await util.Identify(path).NoSync();
+            await util.Convert(path, path, cancellationToken: cancellationToken).NoSync();
+            Dtos.ImageInfo info = await util.Identify(path, cancellationToken: cancellationToken).NoSync();
 
             if (info.Width != 1 || info.Height != 1 || info.PixelCount != 1 || info.AspectRatio != 1)
                 throw new InvalidOperationException("The in-place conversion produced an invalid image.");
@@ -181,14 +182,14 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Rejects_invalid_custom_commands()
+    public async Task Rejects_invalid_custom_commands(CancellationToken cancellationToken)
     {
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
 
         try
         {
-            _ = util.Execute(new InvalidCommand());
+            _ = util.Execute(new InvalidCommand(), cancellationToken: cancellationToken);
             throw new InvalidOperationException("The invalid custom command was accepted.");
         }
         catch (InvalidOperationException exception) when (!exception.Message.Contains("was accepted", StringComparison.Ordinal))
