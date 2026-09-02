@@ -5,6 +5,7 @@ using Soenneker.Libvips.Util.Abstract;
 using Soenneker.Utils.Directory.Registrars;
 using Soenneker.Utils.File.Registrars;
 using Soenneker.Utils.Process.Registrars;
+using Soenneker.Utils.Paths.Resources.Registrars;
 
 namespace Soenneker.Libvips.Util.Registrars;
 
@@ -23,6 +24,7 @@ public static class LibvipsUtilRegistrar
         services.AddDirectoryUtilAsSingleton()
                 .AddFileUtilAsSingleton()
                 .AddProcessUtilAsSingleton()
+                .AddResourcesPathUtilAsSingleton()
                 .TryAddSingleton<ILibvipsUtil, LibvipsUtil>();
 
         return services;
@@ -38,6 +40,7 @@ public static class LibvipsUtilRegistrar
         services.AddDirectoryUtilAsScoped()
                 .AddFileUtilAsScoped()
                 .AddProcessUtilAsScoped()
+                .AddResourcesPathUtilAsScoped()
                 .TryAddScoped<ILibvipsUtil, LibvipsUtil>();
 
         return services;

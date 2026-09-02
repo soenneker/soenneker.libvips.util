@@ -18,6 +18,7 @@ using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.File.Abstract;
 using Soenneker.Utils.Path.Abstract;
 using Soenneker.Utils.Process.Abstract;
+using Soenneker.Utils.Paths.Resources.Abstract;
 using Soenneker.Utils.Runtime;
 
 namespace Soenneker.Libvips.Util;
@@ -28,15 +29,17 @@ public sealed class LibvipsUtil : ILibvipsUtil
     private readonly IFileUtil _fileUtil;
     private readonly IPathUtil _pathUtil;
     private readonly IProcessUtil _processUtil;
-    private readonly string _vipsBinaryPath;
-    private readonly string _vipsHeaderBinaryPath;
+    private readonly IResourcesPathUtil _resourcesPathUtil;
+    private readonly string _vipsBinaryRelativePath;
+    private readonly string _vipsHeaderBinaryRelativePath;
 
     /// <summary>Creates a libvips utility using the registered process and filesystem services.</summary>
     /// <param name="processUtil">The process execution utility.</param>
     /// <param name="directoryUtil">The directory utility.</param>
     /// <param name="fileUtil">The file utility.</param>
     public LibvipsUtil(IProcessUtil processUtil, IDirectoryUtil directoryUtil, IFileUtil fileUtil)
-        : this(processUtil, directoryUtil, fileUtil, new Soenneker.Utils.Path.PathUtil())
+        : this(processUtil, directoryUtil, fileUtil, new Soenneker.Utils.Path.PathUtil(),
+            new Soenneker.Utils.Paths.Resources.ResourcesPathUtil(directoryUtil))
     {
     }
 
@@ -46,21 +49,28 @@ public sealed class LibvipsUtil : ILibvipsUtil
     /// <param name="fileUtil">The file utility.</param>
     /// <param name="pathUtil">The path utility used to allocate unique temporary paths.</param>
     public LibvipsUtil(IProcessUtil processUtil, IDirectoryUtil directoryUtil, IFileUtil fileUtil, IPathUtil pathUtil)
+        : this(processUtil, directoryUtil, fileUtil, pathUtil, new Soenneker.Utils.Paths.Resources.ResourcesPathUtil(directoryUtil))
     {
-        _processUtil = processUtil ?? throw new ArgumentNullException(nameof(processUtil));
-        _directoryUtil = directoryUtil ?? throw new ArgumentNullException(nameof(directoryUtil));
-        _fileUtil = fileUtil ?? throw new ArgumentNullException(nameof(fileUtil));
-        _pathUtil = pathUtil ?? throw new ArgumentNullException(nameof(pathUtil));
+    }
+
+    public LibvipsUtil(IProcessUtil processUtil, IDirectoryUtil directoryUtil, IFileUtil fileUtil, IPathUtil pathUtil,
+        IResourcesPathUtil resourcesPathUtil)
+    {
+        _processUtil = processUtil;
+        _directoryUtil = directoryUtil;
+        _fileUtil = fileUtil;
+        _pathUtil = pathUtil;
+        _resourcesPathUtil = resourcesPathUtil;
 
         EnsureSupportedPlatform();
 
-        _vipsBinaryPath = RuntimeUtil.IsWindows()
-            ? Path.Join(AppContext.BaseDirectory, "Resources", "win-x64", "libvips", "bin", "vips.exe")
-            : Path.Join(AppContext.BaseDirectory, "Resources", "linux-x64", "libvips", "vips.sh");
+        _vipsBinaryRelativePath = RuntimeUtil.IsWindows()
+            ? Path.Join("win-x64", "libvips", "bin", "vips.exe")
+            : Path.Join("linux-x64", "libvips", "vips.sh");
 
-        _vipsHeaderBinaryPath = RuntimeUtil.IsWindows()
-            ? Path.Join(AppContext.BaseDirectory, "Resources", "win-x64", "libvips", "bin", "vipsheader.exe")
-            : Path.Join(AppContext.BaseDirectory, "Resources", "linux-x64", "libvips", "vipsheader.sh");
+        _vipsHeaderBinaryRelativePath = RuntimeUtil.IsWindows()
+            ? Path.Join("win-x64", "libvips", "bin", "vipsheader.exe")
+            : Path.Join("linux-x64", "libvips", "vipsheader.sh");
     }
 
     public async ValueTask<List<string>> Run(string arguments, string? workingDirectory = null, bool log = true,
@@ -68,19 +78,22 @@ public sealed class LibvipsUtil : ILibvipsUtil
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(arguments);
 
-        return await RunExecutable(_vipsBinaryPath, arguments, workingDirectory, log, cancellationToken).NoSync();
+        return await RunExecutable(_vipsBinaryRelativePath, arguments, workingDirectory, log, cancellationToken).NoSync();
     }
 
     public ValueTask<List<string>> Execute(ILibvipsCommand command, string? workingDirectory = null, bool log = true,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        return RunExecutable(_vipsBinaryPath, LibvipsCommand.Build(command), workingDirectory, log, cancellationToken);
+        return RunExecutable(_vipsBinaryRelativePath, LibvipsCommand.Build(command), workingDirectory, log, cancellationToken);
     }
 
-    private async ValueTask<List<string>> RunExecutable(string executablePath, string arguments,
+    private async ValueTask<List<string>> RunExecutable(string executableRelativePath, string arguments,
         string? workingDirectory, bool log, CancellationToken cancellationToken)
     {
+        string executablePath = await _resourcesPathUtil.GetResourceFilePath(executableRelativePath, cancellationToken)
+                                                        .NoSync();
+
         if (!await _fileUtil.Exists(executablePath, cancellationToken).NoSync())
             throw new FileNotFoundException("The bundled libvips executable was not found.", executablePath);
 
@@ -114,7 +127,7 @@ public sealed class LibvipsUtil : ILibvipsUtil
         await ValidateInput(inputPath, cancellationToken).NoSync();
         string fullInputPath = Path.GetFullPath(inputPath);
         string arguments = LibvipsCommand.BuildArgumentString(["-a", fullInputPath]);
-        List<string> output = await RunExecutable(_vipsHeaderBinaryPath, arguments, null, false, cancellationToken).NoSync();
+        List<string> output = await RunExecutable(_vipsHeaderBinaryRelativePath, arguments, null, false, cancellationToken).NoSync();
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         for (var index = 1; index < output.Count; index++)
