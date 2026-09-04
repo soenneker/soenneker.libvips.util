@@ -12,6 +12,7 @@ using Soenneker.Libvips.Util.Pipelines.Abstract;
 
 namespace Soenneker.Libvips.Util.Pipelines;
 
+/// <inheritdoc cref="ILibvipsPipeline" />
 public sealed class LibvipsPipeline : ILibvipsPipeline
 {
     private readonly List<ILibvipsPipelineStep> _steps = [];

@@ -23,6 +23,7 @@ using Soenneker.Utils.Runtime;
 
 namespace Soenneker.Libvips.Util;
 
+/// <inheritdoc cref="ILibvipsUtil" />
 public sealed class LibvipsUtil : ILibvipsUtil
 {
     private readonly IDirectoryUtil _directoryUtil;

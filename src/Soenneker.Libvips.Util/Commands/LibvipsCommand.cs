@@ -7,6 +7,7 @@ using Soenneker.Utils.PooledStringBuilders;
 
 namespace Soenneker.Libvips.Util.Commands;
 
+/// <inheritdoc cref="ILibvipsCommand" />
 public sealed class LibvipsCommand : ILibvipsCommand
 {
     private readonly List<string> _arguments = [];
