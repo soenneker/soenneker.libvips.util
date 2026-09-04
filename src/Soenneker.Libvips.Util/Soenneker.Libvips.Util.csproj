@@ -43,17 +43,11 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Gen.EnumValues" Version="4.0.46" />
-        <PackageReference Include="Soenneker.Asyncs.Locks" Version="4.0.77" />
         <PackageReference Include="Soenneker.Libvips.Linux" Version="4.0.25" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Libvips.Windows" Version="4.0.8" PrivateAssets="analyzers;build" />
-        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.916" />
         <PackageReference Include="Soenneker.Utils.File" Version="4.0.2246" />
-        <PackageReference Include="Soenneker.Utils.Path" Version="4.0.1209" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1534" />
         <PackageReference Include="Soenneker.Utils.Paths.Resources" Version="4.0.230" />
-        <PackageReference Include="Soenneker.Utils.PooledStringBuilders" Version="4.0.29" />
-        <PackageReference Include="Soenneker.Utils.Runtime" Version="4.0.1087" />
     </ItemGroup>
 </Project>
  
