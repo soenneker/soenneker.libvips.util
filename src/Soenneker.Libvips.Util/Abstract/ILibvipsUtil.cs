@@ -73,7 +73,7 @@ public interface ILibvipsUtil
     /// <param name="options">Optional AVIF encoding settings.</param>
     /// <param name="cancellationToken">A token that can cancel the operation.</param>
     /// <returns>A value task representing the asynchronous operation.</returns>
-    ValueTask ConvertToAvif(string inputPath, string outputPath, LibvipsOptions? options = null,
+    ValueTask ConvertToAvif(string inputPath, string outputPath, AvifOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Converts an image to WebP.</summary>
@@ -82,7 +82,25 @@ public interface ILibvipsUtil
     /// <param name="options">Optional WebP encoding settings.</param>
     /// <param name="cancellationToken">A token that can cancel the operation.</param>
     /// <returns>A value task representing the asynchronous operation.</returns>
-    ValueTask ConvertToWebp(string inputPath, string outputPath, LibvipsOptions? options = null,
+    ValueTask ConvertToWebp(string inputPath, string outputPath, WebpOptions? options = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Converts an image to JPEG.</summary>
+    /// <param name="inputPath">The source image path.</param>
+    /// <param name="outputPath">The destination path, which must end in <c>.jpg</c> or <c>.jpeg</c>.</param>
+    /// <param name="options">Optional JPEG encoding settings.</param>
+    /// <param name="cancellationToken">A token that can cancel the operation.</param>
+    /// <returns>A value task representing the asynchronous operation.</returns>
+    ValueTask ConvertToJpeg(string inputPath, string outputPath, JpegOptions? options = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Converts an image to PNG.</summary>
+    /// <param name="inputPath">The source image path.</param>
+    /// <param name="outputPath">The destination path, which must end in <c>.png</c>.</param>
+    /// <param name="options">Optional PNG encoding settings.</param>
+    /// <param name="cancellationToken">A token that can cancel the operation.</param>
+    /// <returns>A value task representing the asynchronous operation.</returns>
+    ValueTask ConvertToPng(string inputPath, string outputPath, PngOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Resizes an image to fit within the requested bounds without enlarging it.</summary>

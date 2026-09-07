@@ -50,6 +50,34 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
+    public async Task Converts_image_to_jpeg_and_png(CancellationToken cancellationToken)
+    {
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
+        ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
+
+        try
+        {
+            string input = Path.Combine(directory, "input.png");
+            string jpeg = Path.Combine(directory, "output.jpeg");
+            string png = Path.Combine(directory, "output.png");
+            await File.WriteAllBytesAsync(input, Convert.FromBase64String(Png), cancellationToken);
+
+            await util.ConvertToJpeg(input, jpeg, cancellationToken: cancellationToken).NoSync();
+            await util.ConvertToPng(jpeg, png, cancellationToken: cancellationToken).NoSync();
+            Dtos.ImageInfo jpegInfo = await util.Identify(jpeg, cancellationToken).NoSync();
+            Dtos.ImageInfo pngInfo = await util.Identify(png, cancellationToken).NoSync();
+
+            if (jpegInfo.Width != 1 || jpegInfo.Height != 1 || pngInfo.Width != 1 || pngInfo.Height != 1)
+                throw new InvalidOperationException("The converted image dimensions are incorrect.");
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
     public async Task Resizes_image_to_webp(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");

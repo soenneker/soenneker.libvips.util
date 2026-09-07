@@ -45,6 +45,8 @@ The output extension selects the image format.
 await libvips.Convert("photo.tif", "photo.jpg");
 await libvips.ConvertToAvif("photo.jpg", "photo.avif");
 await libvips.ConvertToWebp("photo.jpg", "photo.webp");
+await libvips.ConvertToJpeg("photo.png", "photo.jpg");
+await libvips.ConvertToPng("photo.jpg", "photo.png");
 ```
 
 ### Resize
@@ -80,20 +82,29 @@ await libvips.Flatten("transparent.png", "flat.jpg", [255, 255, 255]);
 
 ## Control the output
 
-Pass `LibvipsOptions` when you need more than the defaults:
+The typed conversion methods accept format-specific options:
 
 ```csharp
 using Soenneker.Libvips.Util.Options;
 
-await libvips.ConvertToAvif("photo.jpg", "photo.avif", new LibvipsOptions
+await libvips.ConvertToAvif("photo.jpg", "photo.avif", new AvifOptions
 {
     Quality = 85,
     Effort = 5,
+    BitDepth = 10,
     StripMetadata = true
+});
+
+await libvips.ConvertToJpeg("photo.png", "photo.jpg", new JpegOptions
+{
+    Quality = 88,
+    Progressive = true,
+    OptimizeCoding = true,
+    TrellisQuantization = true
 });
 ```
 
-Available controls include quality, encoder effort, lossless encoding, metadata stripping, progressive output, JPEG optimization, and PNG compression.
+`AvifOptions`, `WebpOptions`, `JpegOptions`, `PngOptions`, and `TiffOptions` expose all saver options reported by the bundled libvips build. Common controls such as metadata retention, ICC profiles, background values, and multipage height live on `LibvipsOptions`.
 
 ## Advanced resizing
 

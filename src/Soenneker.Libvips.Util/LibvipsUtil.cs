@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Soenneker.Extensions.String;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Libvips.Util.Abstract;
 using Soenneker.Libvips.Util.Commands;
@@ -23,7 +24,6 @@ using Soenneker.Utils.Runtime;
 
 namespace Soenneker.Libvips.Util;
 
-/// <inheritdoc cref="ILibvipsUtil" />
 public sealed class LibvipsUtil : ILibvipsUtil
 {
     private readonly IDirectoryUtil _directoryUtil;
@@ -234,21 +234,34 @@ public sealed class LibvipsUtil : ILibvipsUtil
     }
 
 
-    public ValueTask ConvertToAvif(string inputPath, string outputPath, LibvipsOptions? options = null,
+    public ValueTask ConvertToAvif(string inputPath, string outputPath, AvifOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ValidateExtension(outputPath, ".avif");
-        return Convert(inputPath, outputPath, options, cancellationToken);
+        return Convert(inputPath, outputPath, options ?? new AvifOptions(), cancellationToken);
     }
 
 
-    public ValueTask ConvertToWebp(string inputPath, string outputPath, LibvipsOptions? options = null,
+    public ValueTask ConvertToWebp(string inputPath, string outputPath, WebpOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ValidateExtension(outputPath, ".webp");
-        return Convert(inputPath, outputPath, options, cancellationToken);
+        return Convert(inputPath, outputPath, options ?? new WebpOptions(), cancellationToken);
     }
 
+    public ValueTask ConvertToJpeg(string inputPath, string outputPath, JpegOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateExtensions(outputPath, ".jpg", ".jpeg");
+        return Convert(inputPath, outputPath, options ?? new JpegOptions(), cancellationToken);
+    }
+
+    public ValueTask ConvertToPng(string inputPath, string outputPath, PngOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateExtension(outputPath, ".png");
+        return Convert(inputPath, outputPath, options ?? new PngOptions(), cancellationToken);
+    }
 
     public async ValueTask Resize(string inputPath, string outputPath, int width, int? height = null,
         LibvipsOptions? options = null, CancellationToken cancellationToken = default)
@@ -388,7 +401,7 @@ public sealed class LibvipsUtil : ILibvipsUtil
 
     private static string BuildOutputSpec(string outputPath, LibvipsOptions options)
     {
-        string extension = Path.GetExtension(outputPath).ToLowerInvariant();
+        string extension = Path.GetExtension(outputPath).ToLowerInvariantFast();
         var values = new List<string>();
 
         switch (extension)
@@ -396,32 +409,114 @@ public sealed class LibvipsUtil : ILibvipsUtil
             case ".avif":
             case ".heif":
             case ".heic":
+                if (options is AvifOptions avif)
+                {
+                    values.Add($"Q={avif.Quality}");
+                    values.Add($"effort={avif.Effort}");
+                    values.Add($"lossless={Lower(avif.Lossless)}");
+                    values.Add($"bitdepth={avif.BitDepth}");
+                    values.Add($"compression={avif.CompressionFormat.Value}");
+                    values.Add($"subsample-mode={avif.SubsampleMode.Value}");
+                    values.Add($"encoder={avif.Encoder.Value}");
+                    AddValue(values, "tune", avif.Tune);
+                }
+                break;
             case ".webp":
-                values.Add($"Q={options.Quality}");
-                values.Add($"effort={options.Effort}");
-                values.Add($"lossless={options.Lossless.ToString().ToLowerInvariant()}");
-                values.Add($"strip={options.StripMetadata.ToString().ToLowerInvariant()}");
+                if (options is WebpOptions webp)
+                {
+                    values.Add($"Q={webp.Quality}");
+                    values.Add($"effort={webp.Effort}");
+                    values.Add($"lossless={Lower(webp.Lossless)}");
+                    values.Add($"exact={Lower(webp.Exact)}");
+                    values.Add($"preset={webp.Preset.Value}");
+                    values.Add($"smart-subsample={Lower(webp.SmartSubsample)}");
+                    values.Add($"near-lossless={Lower(webp.NearLossless)}");
+                    values.Add($"alpha-q={webp.AlphaQuality}");
+                    values.Add($"min-size={Lower(webp.MinimizeSize)}");
+                    values.Add($"kmin={webp.MinimumKeyframeDistance}");
+                    values.Add($"kmax={webp.MaximumKeyframeDistance}");
+                    values.Add($"target-size={webp.TargetSize}");
+                    values.Add($"mixed={Lower(webp.Mixed)}");
+                    values.Add($"smart-deblock={Lower(webp.SmartDeblock)}");
+                    values.Add($"passes={webp.Passes}");
+                }
                 break;
             case ".jpg":
             case ".jpeg":
-                values.Add($"Q={options.Quality}");
-                values.Add($"strip={options.StripMetadata.ToString().ToLowerInvariant()}");
-                values.Add($"interlace={options.Progressive.ToString().ToLowerInvariant()}");
-                values.Add($"optimize-coding={options.OptimizeCoding.ToString().ToLowerInvariant()}");
+                if (options is JpegOptions jpeg)
+                {
+                    values.Add($"Q={jpeg.Quality}");
+                    values.Add($"interlace={Lower(jpeg.Progressive)}");
+                    values.Add($"optimize-coding={Lower(jpeg.OptimizeCoding)}");
+                    values.Add($"trellis-quant={Lower(jpeg.TrellisQuantization)}");
+                    values.Add($"overshoot-deringing={Lower(jpeg.OvershootDeringing)}");
+                    values.Add($"optimize-scans={Lower(jpeg.OptimizeScans)}");
+                    values.Add($"quant-table={jpeg.QuantizationTable}");
+                    values.Add($"subsample-mode={jpeg.SubsampleMode.Value}");
+                    values.Add($"restart-interval={jpeg.RestartInterval}");
+                }
                 break;
             case ".png":
-                values.Add($"compression={options.Compression}");
-                values.Add($"strip={options.StripMetadata.ToString().ToLowerInvariant()}");
-                values.Add($"interlace={options.Progressive.ToString().ToLowerInvariant()}");
+                if (options is PngOptions png)
+                {
+                    values.Add($"compression={png.Compression}");
+                    values.Add($"interlace={Lower(png.Interlace)}");
+                    values.Add($"filter={png.Filter.Value}");
+                    values.Add($"palette={Lower(png.Palette)}");
+                    values.Add($"Q={png.Quality}");
+                    values.Add($"dither={png.Dither.ToString(CultureInfo.InvariantCulture)}");
+                    values.Add($"bitdepth={png.BitDepth}");
+                    values.Add($"effort={png.QuantizationEffort}");
+                }
                 break;
             case ".tif":
             case ".tiff":
-                values.Add($"Q={options.Quality}");
-                values.Add($"strip={options.StripMetadata.ToString().ToLowerInvariant()}");
+                if (options is TiffOptions tiff)
+                {
+                    values.Add($"Q={tiff.Quality}");
+                    values.Add($"compression={tiff.CompressionFormat.Value}");
+                    values.Add($"predictor={tiff.Predictor.Value}");
+                    values.Add($"tile={Lower(tiff.Tile)}");
+                    values.Add($"tile-width={tiff.TileWidth}");
+                    values.Add($"tile-height={tiff.TileHeight}");
+                    values.Add($"pyramid={Lower(tiff.Pyramid)}");
+                    values.Add($"miniswhite={Lower(tiff.MinisWhite)}");
+                    values.Add($"bitdepth={tiff.BitDepth}");
+                    values.Add($"resunit={tiff.ResolutionUnit.Value}");
+                    values.Add($"xres={tiff.XResolution.ToString(CultureInfo.InvariantCulture)}");
+                    values.Add($"yres={tiff.YResolution.ToString(CultureInfo.InvariantCulture)}");
+                    values.Add($"bigtiff={Lower(tiff.BigTiff)}");
+                    values.Add($"properties={Lower(tiff.Properties)}");
+                    values.Add($"region-shrink={tiff.RegionShrink.Value}");
+                    values.Add($"level={tiff.Level}");
+                    values.Add($"lossless={Lower(tiff.Lossless)}");
+                    values.Add($"depth={tiff.Depth.Value}");
+                    values.Add($"subifd={Lower(tiff.SubIfd)}");
+                    values.Add($"premultiply={Lower(tiff.Premultiply)}");
+                }
                 break;
         }
 
+        if (values.Count > 0)
+        {
+            if (options.KeepMetadata is not null)
+                values.Add($"keep={options.KeepMetadata}");
+            else
+                values.Add($"strip={Lower(options.StripMetadata)}");
+            AddValue(values, "profile", options.Profile);
+            if (options.Background is {Length: > 0})
+                values.Add($"background={string.Join(',', Array.ConvertAll(options.Background, value => value.ToString(CultureInfo.InvariantCulture)))}");
+            if (options.PageHeight > 0)
+                values.Add($"page-height={options.PageHeight}");
+        }
+
         return values.Count == 0 ? outputPath : $"{outputPath}[{string.Join(',', values)}]";
+    }
+
+    private static string Lower(bool value) => value.ToString().ToLowerInvariantFast();
+    private static void AddValue(List<string> values, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) values.Add($"{name}={value}");
     }
 
     private ValueTask<string> CreateTemporaryOutputPath(string outputPath, CancellationToken cancellationToken)
@@ -490,6 +585,19 @@ public sealed class LibvipsUtil : ILibvipsUtil
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
         if (!Path.GetExtension(outputPath).Equals(extension, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException($"The output path must use the {extension} extension.", nameof(outputPath));
+    }
+
+    private static void ValidateExtensions(string outputPath, params string[] extensions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        string actualExtension = Path.GetExtension(outputPath);
+        foreach (string extension in extensions)
+        {
+            if (actualExtension.Equals(extension, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
+        throw new ArgumentException($"The output path must use one of these extensions: {string.Join(", ", extensions)}.", nameof(outputPath));
     }
 
     private static void EnsureSupportedPlatform()
