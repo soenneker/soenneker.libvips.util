@@ -43,10 +43,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Libvips.Linux" Version="4.0.28" PrivateAssets="analyzers;build" />
+        <PackageReference Include="Soenneker.Libvips.Linux" Version="4.0.29" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Libvips.Windows" Version="4.0.8" PrivateAssets="analyzers;build" />
-        <PackageReference Include="Soenneker.Utils.File" Version="4.0.2255" />
-        <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1548" />
+        <PackageReference Include="Soenneker.Utils.File" Version="4.0.2256" />
+        <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1549" />
         <PackageReference Include="Soenneker.Utils.Paths.Resources" Version="4.0.242" />
     </ItemGroup>
 </Project>
