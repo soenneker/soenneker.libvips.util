@@ -23,8 +23,7 @@ public sealed class LibvipsCommand : ILibvipsCommand
 
     public LibvipsCommand(string operation)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
-        ValidateName(operation, nameof(operation));
+        ValidateOperation(operation);
         Operation = operation;
         _readOnlyArguments = _arguments.AsReadOnly();
         _readOnlyOptions = _options.AsReadOnly();
@@ -78,30 +77,37 @@ public sealed class LibvipsCommand : ILibvipsCommand
 
     internal static string BuildArgumentString(IReadOnlyList<string> arguments)
     {
-        using var builder = new PooledStringBuilder();
-
-        for (var index = 0; index < arguments.Count; index++)
+        var builder = new PooledStringBuilder();
+        try
         {
-            if (index > 0)
-                builder.Append(' ');
-            builder.Append(Quote(arguments[index]));
-        }
+            for (var index = 0; index < arguments.Count; index++)
+            {
+                if (index > 0)
+                    builder.Append(' ');
+                AppendQuoted(ref builder, arguments[index]);
+            }
 
-        return builder.ToString();
+            return builder.ToString();
+        }
+        finally
+        {
+            builder.Dispose();
+        }
     }
 
     public override string ToString() => Build(this);
 
-    private static string Quote(string value)
+    private static void AppendQuoted(ref PooledStringBuilder builder, string value)
     {
         bool requiresQuotes = value.Length == 0;
         for (var index = 0; index < value.Length && !requiresQuotes; index++)
             requiresQuotes = char.IsWhiteSpace(value[index]) || value[index] == '"';
 
         if (!requiresQuotes)
-            return value;
-
-        using var builder = new PooledStringBuilder(value.Length + 2);
+        {
+            builder.Append(value);
+            return;
+        }
         builder.Append('"');
         var backslashCount = 0;
 
@@ -128,7 +134,12 @@ public sealed class LibvipsCommand : ILibvipsCommand
 
         builder.Append('\\', backslashCount * 2);
         builder.Append('"');
-        return builder.ToString();
+    }
+
+    internal static void ValidateOperation(string operation)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+        ValidateName(operation, nameof(operation));
     }
 
     private static string Format(object value) => value switch

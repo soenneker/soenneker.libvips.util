@@ -33,7 +33,7 @@ public sealed class LibvipsPipeline : ILibvipsPipeline
     public ILibvipsPipeline Add(string operation, Action<ILibvipsCommand>? configure = null)
     {
         // Validate eagerly rather than failing after earlier pipeline steps have run.
-        _ = new LibvipsCommand(operation);
+        LibvipsCommand.ValidateOperation(operation);
         using (_lock.LockSync())
             _steps.Add(new Step(operation, configure));
         return this;
