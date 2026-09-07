@@ -35,7 +35,7 @@ public sealed class LibvipsPipeline : ILibvipsPipeline
         // Validate eagerly rather than failing after earlier pipeline steps have run.
         LibvipsCommand.ValidateOperation(operation);
         using (_lock.LockSync())
-            _steps.Add(new Step(operation, configure));
+            _steps.Add(new LibvipsPipelineStep(operation, configure));
         return this;
     }
 
@@ -46,7 +46,8 @@ public sealed class LibvipsPipeline : ILibvipsPipeline
         if (top < 0)
             throw new ArgumentOutOfRangeException(nameof(top), "Top must be zero or greater.");
         ValidateDimensions(width, height);
-        return Add("crop", command => command.AddArgument(left).AddArgument(top).AddArgument(width).AddArgument(height));
+        return Add("crop",
+            command => command.AddArgument(left).AddArgument(top).AddArgument(width).AddArgument(height));
     }
 
     public ILibvipsPipeline SmartCrop(int width, int height) => SmartCrop(width, height, LibvipsInteresting.Attention);
@@ -55,8 +56,8 @@ public sealed class LibvipsPipeline : ILibvipsPipeline
     {
         ArgumentNullException.ThrowIfNull(interesting);
         ValidateDimensions(width, height);
-        return Add("smartcrop", command => command.AddArgument(width).AddArgument(height)
-            .AddOption("interesting", interesting.Value));
+        return Add("smartcrop",
+            command => command.AddArgument(width).AddArgument(height).AddOption("interesting", interesting.Value));
     }
 
     public ILibvipsPipeline Rotate(LibvipsAngle angle)
@@ -83,14 +84,16 @@ public sealed class LibvipsPipeline : ILibvipsPipeline
     public ILibvipsPipeline Sharpen(double sigma = 0.5)
     {
         if (!double.IsFinite(sigma) || sigma is <= 0 or > 10)
-            throw new ArgumentOutOfRangeException(nameof(sigma), "Sigma must be greater than zero and no more than 10.");
+            throw new ArgumentOutOfRangeException(nameof(sigma),
+                "Sigma must be greater than zero and no more than 10.");
         return Add("sharpen", command => command.AddOption("sigma", sigma));
     }
 
     public ILibvipsPipeline Gamma(double exponent = 1d / 2.4d)
     {
         if (!double.IsFinite(exponent) || exponent is <= 0 or > 1000)
-            throw new ArgumentOutOfRangeException(nameof(exponent), "Exponent must be greater than zero and no more than 1000.");
+            throw new ArgumentOutOfRangeException(nameof(exponent),
+                "Exponent must be greater than zero and no more than 1000.");
         return Add("gamma", command => command.AddOption("exponent", exponent));
     }
 
@@ -102,11 +105,12 @@ public sealed class LibvipsPipeline : ILibvipsPipeline
         double[] values = [.. background];
         ValidateBackground(values);
 
-        return Add("flatten", values.Length == 0 ? null : command => command.AddOption("background",
-            string.Join(',', Array.ConvertAll(values, value => value.ToString(CultureInfo.InvariantCulture)))));
+        return Add("flatten",
+            values.Length == 0
+                ? null
+                : command => command.AddOption("background",
+                    string.Join(',', Array.ConvertAll(values, value => value.ToString(CultureInfo.InvariantCulture)))));
     }
-
-    private sealed record Step(string Operation, Action<ILibvipsCommand>? Configure) : ILibvipsPipelineStep;
 
     public void Dispose() => _lock.Dispose();
 

@@ -31,7 +31,8 @@ public class LibvipsOptions
         {
             foreach (double value in Background)
                 if (!double.IsFinite(value))
-                    throw new ArgumentOutOfRangeException(nameof(Background), "Background values must be finite numbers.");
+                    throw new ArgumentOutOfRangeException(nameof(Background),
+                        "Background values must be finite numbers.");
         }
     }
 }

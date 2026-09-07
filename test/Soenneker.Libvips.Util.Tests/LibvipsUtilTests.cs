@@ -225,15 +225,4 @@ public sealed class LibvipsUtilTests
         }
     }
 
-    private sealed class InvalidCommand : ILibvipsCommand
-    {
-        public string Operation => "copy --version";
-        public IReadOnlyList<string> Arguments { get; } = [];
-        public IReadOnlyList<KeyValuePair<string, string?>> Options { get; } = [];
-
-        public ILibvipsCommand AddArgument(object value) => this;
-        public ILibvipsCommand AddOption(string name, object value) => this;
-        public ILibvipsCommand AddFlag(string name, bool enabled = true) => this;
-        public override string ToString() => Operation;
-    }
 }

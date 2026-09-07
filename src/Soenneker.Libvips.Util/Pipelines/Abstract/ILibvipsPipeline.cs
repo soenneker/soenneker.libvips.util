@@ -92,13 +92,3 @@ public interface ILibvipsPipeline : IDisposable, IAsyncDisposable
     /// <returns>This pipeline, enabling fluent chaining.</returns>
     ILibvipsPipeline Flatten(params double[] background);
 }
-
-/// <summary>A configured operation in a libvips pipeline.</summary>
-public interface ILibvipsPipelineStep
-{
-    /// <summary>Gets the libvips operation nickname.</summary>
-    string Operation { get; }
-
-    /// <summary>Gets the optional command configuration callback.</summary>
-    Action<ILibvipsCommand>? Configure { get; }
-}
