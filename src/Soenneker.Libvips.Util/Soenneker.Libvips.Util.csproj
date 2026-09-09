@@ -47,7 +47,7 @@
         <PackageReference Include="Soenneker.Libvips.Windows" Version="4.0.8" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Utils.File" Version="4.0.2259" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1551" />
-        <PackageReference Include="Soenneker.Utils.Paths.Resources" Version="4.0.247" />
+        <PackageReference Include="Soenneker.Utils.Paths.Resources" Version="4.0.248" />
     </ItemGroup>
 </Project>
  
