@@ -1,3 +1,4 @@
+using Soenneker.Utils.File.Abstract;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -32,7 +33,7 @@ public sealed class LibvipsUtilTests
             string input = Path.Combine(directory, "input.png");
             string webp = Path.Combine(directory, "output.webp");
             string avif = Path.Combine(directory, "output.avif");
-            await File.WriteAllBytesAsync(input, Convert.FromBase64String(Png));
+            await provider.GetRequiredService<IFileUtil>().Write(input, Convert.FromBase64String(Png));
 
             await util.ConvertToWebp(input, webp, cancellationToken: cancellationToken).NoSync();
             await util.ConvertToAvif(input, avif, cancellationToken: cancellationToken).NoSync();
@@ -61,7 +62,7 @@ public sealed class LibvipsUtilTests
             string input = Path.Combine(directory, "input.png");
             string jpeg = Path.Combine(directory, "output.jpeg");
             string png = Path.Combine(directory, "output.png");
-            await File.WriteAllBytesAsync(input, Convert.FromBase64String(Png), cancellationToken);
+            await provider.GetRequiredService<IFileUtil>().Write(input, Convert.FromBase64String(Png), cancellationToken: cancellationToken);
 
             await util.ConvertToJpeg(input, jpeg, cancellationToken: cancellationToken).NoSync();
             await util.ConvertToPng(jpeg, png, cancellationToken: cancellationToken).NoSync();
@@ -144,8 +145,8 @@ public sealed class LibvipsUtilTests
         {
             string input = Path.Combine(directory, "invalid.png");
             string output = Path.Combine(directory, "existing.webp");
-            await File.WriteAllTextAsync(input, "not an image");
-            await File.WriteAllBytesAsync(output, originalOutput);
+            await provider.GetRequiredService<IFileUtil>().Write(input, "not an image");
+            await provider.GetRequiredService<IFileUtil>().Write(output, originalOutput);
 
             try
             {
@@ -156,7 +157,7 @@ public sealed class LibvipsUtilTests
             {
             }
 
-            byte[] currentOutput = await File.ReadAllBytesAsync(output);
+            byte[] currentOutput = await provider.GetRequiredService<IFileUtil>().ReadToBytes(output);
             if (!currentOutput.AsSpan().SequenceEqual(originalOutput))
                 throw new InvalidOperationException("A failed conversion modified the existing output.");
 
@@ -179,7 +180,7 @@ public sealed class LibvipsUtilTests
         try
         {
             string path = Path.Combine(directory, "image.png");
-            await File.WriteAllBytesAsync(path, Convert.FromBase64String(Png));
+            await provider.GetRequiredService<IFileUtil>().Write(path, Convert.FromBase64String(Png));
 
             await util.Convert(path, path, cancellationToken: cancellationToken).NoSync();
             Dtos.ImageInfo info = await util.Identify(path, cancellationToken: cancellationToken).NoSync();
