@@ -22,7 +22,7 @@ public sealed class LibvipsUtilTests
     private const string Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
     [Test]
-    public async Task Converts_image_to_webp_and_avif(CancellationToken cancellationToken)
+    public async ValueTask Converts_image_to_webp_and_avif(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -51,7 +51,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Converts_image_to_jpeg_and_png(CancellationToken cancellationToken)
+    public async ValueTask Converts_image_to_jpeg_and_png(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -79,7 +79,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Resizes_image_to_webp(CancellationToken cancellationToken)
+    public async ValueTask Resizes_image_to_webp(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -103,7 +103,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Processes_a_typed_pipeline_and_reads_metadata(CancellationToken cancellationToken)
+    public async ValueTask Processes_a_typed_pipeline_and_reads_metadata(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -134,7 +134,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Preserves_existing_output_when_encoding_fails(CancellationToken cancellationToken)
+    public async ValueTask Preserves_existing_output_when_encoding_fails(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -171,7 +171,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Safely_replaces_an_image_in_place(CancellationToken cancellationToken)
+    public async ValueTask Safely_replaces_an_image_in_place(CancellationToken cancellationToken)
     {
         string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
@@ -211,7 +211,7 @@ public sealed class LibvipsUtilTests
     }
 
     [Test]
-    public async Task Rejects_invalid_custom_commands(CancellationToken cancellationToken)
+    public async ValueTask Rejects_invalid_custom_commands(CancellationToken cancellationToken)
     {
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
