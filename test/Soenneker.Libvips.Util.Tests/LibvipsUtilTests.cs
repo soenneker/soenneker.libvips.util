@@ -24,7 +24,7 @@ public sealed class LibvipsUtilTests
     [Test]
     public async ValueTask Converts_image_to_webp_and_avif(CancellationToken cancellationToken)
     {
-        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test", cancellationToken: cancellationToken);
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
 
@@ -33,7 +33,7 @@ public sealed class LibvipsUtilTests
             string input = Path.Combine(directory, "input.png");
             string webp = Path.Combine(directory, "output.webp");
             string avif = Path.Combine(directory, "output.avif");
-            await provider.GetRequiredService<IFileUtil>().Write(input, Convert.FromBase64String(Png));
+            await provider.GetRequiredService<IFileUtil>().Write(input, Convert.FromBase64String(Png), cancellationToken: cancellationToken);
 
             await util.ConvertToWebp(input, webp, cancellationToken: cancellationToken).NoSync();
             await util.ConvertToAvif(input, avif, cancellationToken: cancellationToken).NoSync();
@@ -53,7 +53,7 @@ public sealed class LibvipsUtilTests
     [Test]
     public async ValueTask Converts_image_to_jpeg_and_png(CancellationToken cancellationToken)
     {
-        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test", cancellationToken: cancellationToken);
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
 
@@ -81,7 +81,7 @@ public sealed class LibvipsUtilTests
     [Test]
     public async ValueTask Resizes_image_to_webp(CancellationToken cancellationToken)
     {
-        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test", cancellationToken: cancellationToken);
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
 
@@ -90,7 +90,7 @@ public sealed class LibvipsUtilTests
             string input = Path.Combine(AppContext.BaseDirectory, "icon.png");
             string output = Path.Combine(directory, "resized.webp");
 
-            await util.Resize(input, output, 32, 32).NoSync();
+            await util.Resize(input, output, 32, 32, cancellationToken: cancellationToken).NoSync();
             Dtos.ImageInfo info = await util.Identify(output, cancellationToken: cancellationToken).NoSync();
 
             if (info.Width > 32 || info.Height > 32)
@@ -105,7 +105,7 @@ public sealed class LibvipsUtilTests
     [Test]
     public async ValueTask Processes_a_typed_pipeline_and_reads_metadata(CancellationToken cancellationToken)
     {
-        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test", cancellationToken: cancellationToken);
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
 
@@ -136,7 +136,7 @@ public sealed class LibvipsUtilTests
     [Test]
     public async ValueTask Preserves_existing_output_when_encoding_fails(CancellationToken cancellationToken)
     {
-        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test", cancellationToken: cancellationToken);
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
         byte[] originalOutput = [1, 2, 3, 4];
@@ -145,8 +145,8 @@ public sealed class LibvipsUtilTests
         {
             string input = Path.Combine(directory, "invalid.png");
             string output = Path.Combine(directory, "existing.webp");
-            await provider.GetRequiredService<IFileUtil>().Write(input, "not an image");
-            await provider.GetRequiredService<IFileUtil>().Write(output, originalOutput);
+            await provider.GetRequiredService<IFileUtil>().Write(input, "not an image", cancellationToken: cancellationToken);
+            await provider.GetRequiredService<IFileUtil>().Write(output, originalOutput, cancellationToken: cancellationToken);
 
             try
             {
@@ -157,7 +157,7 @@ public sealed class LibvipsUtilTests
             {
             }
 
-            byte[] currentOutput = await provider.GetRequiredService<IFileUtil>().ReadToBytes(output);
+            byte[] currentOutput = await provider.GetRequiredService<IFileUtil>().ReadToBytes(output, cancellationToken: cancellationToken);
             if (!currentOutput.AsSpan().SequenceEqual(originalOutput))
                 throw new InvalidOperationException("A failed conversion modified the existing output.");
 
@@ -173,14 +173,14 @@ public sealed class LibvipsUtilTests
     [Test]
     public async ValueTask Safely_replaces_an_image_in_place(CancellationToken cancellationToken)
     {
-        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test");
+        string directory = await new PathUtil().GetUniqueTempDirectory("soenneker libvips test", cancellationToken: cancellationToken);
         await using ServiceProvider provider = new ServiceCollection().AddLogging().AddLibvipsUtilAsSingleton().BuildServiceProvider();
         ILibvipsUtil util = provider.GetRequiredService<ILibvipsUtil>();
 
         try
         {
             string path = Path.Combine(directory, "image.png");
-            await provider.GetRequiredService<IFileUtil>().Write(path, Convert.FromBase64String(Png));
+            await provider.GetRequiredService<IFileUtil>().Write(path, Convert.FromBase64String(Png), cancellationToken: cancellationToken);
 
             await util.Convert(path, path, cancellationToken: cancellationToken).NoSync();
             Dtos.ImageInfo info = await util.Identify(path, cancellationToken: cancellationToken).NoSync();
