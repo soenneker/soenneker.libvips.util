@@ -46,7 +46,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Libvips.Linux" Version="11.0.96" PrivateAssets="analyzers;build" />
+        <PackageReference Include="Soenneker.Libvips.Linux" Version="11.0.97" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Libvips.Windows" Version="11.0.82" PrivateAssets="analyzers;build" />
         <PackageReference Include="Soenneker.Utils.File" Version="11.0.2333" />
         <PackageReference Include="Soenneker.Utils.Process" Version="11.0.1609" />
